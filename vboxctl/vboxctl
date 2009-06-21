@@ -1,0 +1,337 @@
+#!/bin/sh
+# VirtualBox Machines Control init script
+
+#
+# Author: Rogério Carvalho Schneider <stockrt@gmail.com>
+# URL:    http://stockrt.github.com
+#
+
+# chkconfig: 2345 31 69
+# description: VirtualBox Machines Control
+
+### BEGIN INIT INFO
+# Provides:       vboxctl
+# Required-Start: $syslog
+# Required-Stop:
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
+# Short-Description: VirtualBox Machines Control
+### END INIT INFO
+
+##
+## Config
+##
+PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
+CONFIG="/etc/vbox/vbox.cfg"
+[ -f "$CONFIG" ] && . "$CONFIG"
+[ -r /etc/default/virtualbox ] && . /etc/default/virtualbox
+SU="su $VM_USER -c"
+
+##
+## Functions
+##
+[ -f /lib/lsb/init-functions ] || NOLSB="yes"
+
+if [ ! -n "$VM_USER" ]; then
+    echo "You must specify VM_USER in $CONFIG"
+    exit 1
+fi
+
+if [ ! -n "$MACHINES" ]; then
+    echo "You must specify MACHINES in $CONFIG"
+    exit 1
+fi
+
+if [ -n "$INSTALL_DIR" ]; then
+    VBOXMANAGE="$INSTALL_DIR/VBoxManage --nologo"
+else
+    VBOXMANAGE="/usr/lib/virtualbox/VBoxManage --nologo"
+fi
+
+if [ -n "$NOLSB" ]; then
+    if [ -f /etc/redhat-release ]; then
+        system=redhat
+    elif [ -f /etc/SuSE-release ]; then
+        system=suse
+    elif [ -f /etc/gentoo-release ]; then
+        system=gentoo
+    fi
+fi
+
+if [ -z "$NOLSB" ]; then
+    . /lib/lsb/init-functions
+    fail_msg() {
+        echo ""
+        log_failure_msg "$1"
+    }
+    succ_msg() {
+        log_success_msg " done."
+    }
+else
+    if [ "$system" = "redhat" ]; then
+        . /etc/init.d/functions
+        fail_msg() {
+            echo -n " "
+            echo_failure
+            echo
+            echo "  ($1)"
+        }
+        succ_msg() {
+            echo -n " "
+            echo_success
+            echo
+        }
+    elif [ "$system" = "suse" ]; then
+        . /etc/rc.status
+        fail_msg() {
+            rc_failed 1
+            rc_status -v
+            echo "  ($1)"
+        }
+        succ_msg() {
+            rc_reset
+            rc_status -v
+        }
+    elif [ "$system" = "gentoo" ]; then
+        if [ -f /sbin/functions.sh ]; then
+            . /sbin/functions.sh
+        elif [ -f /etc/init.d/functions.sh ]; then
+            . /etc/init.d/functions.sh
+        fi
+        fail_msg() {
+            eerror "$1"
+        }
+        succ_msg() {
+            eend "$?"
+        }
+        if [ "`which $0`" = "/sbin/rc" ]; then
+            shift
+        fi
+    else
+        fail_msg() {
+            echo " ...failed!"
+            echo "  ($1)"
+        }
+        succ_msg() {
+            echo " ...done."
+        }
+    fi
+fi
+
+##
+## Wait
+##
+wait_machines() {
+    COUNT=$1
+    RUNNING_MACHINES=0
+    for VM in $MACHINES; do
+        STATE=$($SU "$VBOXMANAGE showvminfo $VM" | grep State | awk '{print $2}')
+        if [ "$STATE" == "running" ]; then
+            let "RUNNING_MACHINES=RUNNING_MACHINES + 1"
+        fi
+    done
+    if [ $RUNNING_MACHINES != 0 ]; then
+        echo "Waiting for VMs to shut down..."
+        sleep 5
+        let "COUNT=COUNT + 1"
+        if [ $COUNT == 10 ]; then
+            echo "$RUNNING_MACHINES VMs seem to be hung..."
+            poweroff
+        fi
+        wait_machines $COUNT
+    fi
+}
+
+wait_all_machines() {
+    COUNT=$1
+    RUNNING_MACHINES=$($SU "$VBOXMANAGE list runningvms" | wc -l)
+    if [ $RUNNING_MACHINES != 0 ]; then
+        echo "Waiting for VMs to shut down..."
+        sleep 5
+        let "COUNT=COUNT + 1"
+        if [ $COUNT == 10 ]; then
+            echo "$RUNNING_MACHINES VMs seem to be hung..."
+            poweroffall
+        fi
+        wait_all_machines $COUNT
+    fi
+}
+
+##
+## Commands
+##
+start() {
+    for VM in $MACHINES; do
+        startvm "$VM"
+    done
+}
+
+startall() {
+    $SU "$VBOXMANAGE list vms" | awk '{print $1}' | while read VM; do
+        startvm "$VM"
+    done
+}
+
+stop() {
+    for VM in $MACHINES; do
+        stopvm "$VM"
+    done
+    wait_machines 1
+}
+
+stopall() {
+    $SU "$VBOXMANAGE list runningvms" | awk '{print $1}' | while read VM; do
+        stopvm "$VM"
+    done
+    wait_all_machines 1
+}
+
+poweroff() {
+    for VM in $MACHINES; do
+        poweroffvm "$VM"
+    done
+}
+
+poweroffall() {
+    $SU "$VBOXMANAGE list runningvms" | awk '{print $1}' | while read VM; do
+        poweroffvm "$VM"
+    done
+}
+
+reset() {
+    for VM in $MACHINES; do
+        resetvm "$VM"
+    done
+}
+
+resetall() {
+    $SU "$VBOXMANAGE list runningvms" | awk '{print $1}' | while read VM; do
+        resetvm "$VM"
+    done
+}
+
+open() {
+    for VM in $MACHINES; do
+        openvm "$VM"
+    done
+}
+
+openall() {
+    $SU "$VBOXMANAGE list runningvms" | awk '{print $1}' | while read VM; do
+        openvm "$VM"
+    done
+}
+
+startvm() {
+    VM="$1"
+    echo "Starting VM: $VM..."
+    $SU "$VBOXMANAGE startvm \"$VM\" -type vrdp" && succ_msg || \
+    fail_msg "Could not start VM: $VM"
+}
+
+stopvm() {
+    VM="$1"
+    echo "Stopping VM: $VM..."
+    $SU "$VBOXMANAGE controlvm \"$VM\" acpipowerbutton" && succ_msg || \
+    fail_msg "Could not stop VM: $VM"
+}
+
+poweroffvm() {
+    VM="$1"
+    echo "Powering off VM: $VM..."
+    $SU "$VBOXMANAGE controlvm \"$VM\" poweroff" && succ_msg || \
+    fail_msg "Could not poweroff VM: $VM"
+}
+
+resetvm() {
+    VM="$1"
+    echo "Reseting VM: $VM..."
+    $SU "$VBOXMANAGE controlvm \"$VM\" reset" && succ_msg || \
+    fail_msg "Could not reset VM: $VM"
+}
+
+openvm() {
+    VM="$1"
+    echo "Openning VM: $VM..."
+    output=$($SU "$VBOXMANAGE showvminfo \"$VM\"" | egrep 'VRDP.*Address.*Port' | sed 's/[,:]//g')
+    vrdp_enabled=$(echo "$output" | grep enabled)
+    if [ -n "$vrdp_enabled" ]; then
+        addr_port=$(echo "$output" | awk '{print $4 ":" $6}')
+        rdesktop -k pt-br -g 1280x960 -N -r clipboard:PRIMARYCLIPBOARD -T "$VM" $addr_port &
+        succ_msg
+    else
+        fail_msg "Virtual machine $VM has no VRDP port configured/enabled"
+    fi
+}
+
+status() {
+    RUNNING_MACHINES=$($SU "$VBOXMANAGE list runningvms" | wc -l)
+    if [ $RUNNING_MACHINES != 0 ]; then
+        echo "The following virtual machines are currently running:"
+        $SU "$VBOXMANAGE list runningvms" | awk '{print $1}' | sed 's/"//g' | while read VM; do
+            echo "$VM"
+        done
+    else
+        echo "No virtual machine is running"
+    fi
+}
+
+##
+## Main
+##
+case "$1" in
+    start)
+        start
+        ;;
+    startall)
+        startall
+        ;;
+    stop)
+        stop
+        ;;
+    stopall)
+        stopall
+        ;;
+    poweroff)
+        poweroff
+        ;;
+    poweroffall)
+        poweroffall
+        ;;
+    reset)
+        reset
+        ;;
+    resetall)
+        resetall
+        ;;
+    open)
+        open
+        ;;
+    openall)
+        openall
+        ;;
+    startvm)
+        startvm "$2"
+        ;;
+    stopvm)
+        stopvm "$2"
+        ;;
+    poweroffvm)
+        poweroffvm "$2"
+        ;;
+    resetvm)
+        resetvm "$2"
+        ;;
+    openvm)
+        openvm "$2"
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 {start|startall|stop|stopall|poweroff|poweroffall|\
+reset|resetall|open|openall|startvm <vmname>|stopvm <vmname>|\
+poweroffvm <vmname>|resetvm <vmname>|openvm <vmname>|status}"
+        exit 1
+esac
+exit 0
