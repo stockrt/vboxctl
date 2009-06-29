@@ -110,5 +110,8 @@ echo "Please check %{_sysconfdir}/vbox/vbox.cfg for VM_USER and MACHINES"
 %preun
 
 %changelog
+* Sun Jun 28 2009 - Rogério Carvalho Schneider <stockrt@gmail.com> - 0.1.0-2
+- Reviewd VBoxManage path and priority start/stop defaults
+
 * Sun Jun 21 2009 - Rogério Carvalho Schneider <stockrt@gmail.com> - 0.1.0-1
 - Initial packing

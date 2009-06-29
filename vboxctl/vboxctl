@@ -6,7 +6,7 @@
 # URL:    http://stockrt.github.com
 #
 
-# chkconfig: 2345 31 69
+# chkconfig: 2345 99 10
 # description: VirtualBox Machines Control
 
 ### BEGIN INIT INFO
@@ -25,7 +25,7 @@ PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
 CONFIG="/etc/vbox/vbox.cfg"
 [ -f "$CONFIG" ] && . "$CONFIG"
 [ -r /etc/default/virtualbox ] && . /etc/default/virtualbox
-SU="su $VM_USER -c"
+SU="su - $VM_USER -c"
 
 ##
 ## Functions
@@ -45,7 +45,7 @@ fi
 if [ -n "$INSTALL_DIR" ]; then
     VBOXMANAGE="$INSTALL_DIR/VBoxManage --nologo"
 else
-    VBOXMANAGE="/usr/lib/virtualbox/VBoxManage --nologo"
+    VBOXMANAGE="/usr/bin/VBoxManage --nologo"
 fi
 
 if [ -n "$NOLSB" ]; then
