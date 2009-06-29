@@ -1,6 +1,6 @@
 Name:      vboxctl
 Version:   0.1.0
-Release:   1
+Release:   2
 Summary:   VirtualBox Machines Control init script
 Group:     System/Server
 URL:       http://stockrt.github.com
