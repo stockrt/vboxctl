@@ -1,6 +1,6 @@
 Name:      vboxctl
 Version:   0.1.0
-Release:   2
+Release:   3
 Summary:   VirtualBox Machines Control init script
 Group:     System/Server
 URL:       http://stockrt.github.com
@@ -10,7 +10,7 @@ License:   GPL
 BuildArch: noarch
 Source:    %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id} -un)
-Requires:  VirtualBox >= 2
+#Requires:  VirtualBox
 
 # Recommended Topdir
 %define _topdir %(echo $HOME)/rpmbuild
@@ -110,6 +110,10 @@ echo "Please check %{_sysconfdir}/vbox/vbox.cfg for VM_USER and MACHINES"
 %preun
 
 %changelog
+* Sat Apr  3 2010 - Rogério Carvalho Schneider <stockrt@gmail.com> - 0.1.0-3
+- Removed Requires for VirtualBox rpm package
+- Changed some rules on start options and su command
+
 * Sun Jun 28 2009 - Rogério Carvalho Schneider <stockrt@gmail.com> - 0.1.0-2
 - Reviewd VBoxManage path and priority start/stop defaults
 

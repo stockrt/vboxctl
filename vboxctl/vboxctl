@@ -1,21 +1,21 @@
-#!/bin/sh
-# VirtualBox Machines Control init script
+#!/bin/bash
 
 #
 # Author: Rogério Carvalho Schneider <stockrt@gmail.com>
 # URL:    http://stockrt.github.com
 #
 
-# chkconfig: 2345 99 10
-# description: VirtualBox Machines Control
+# chkconfig:    2345 90 10
+# description:  VirtualBox Machines Control
 
 ### BEGIN INIT INFO
-# Provides:       vboxctl
-# Required-Start: $syslog
+# Provides:             vboxctl
+# Required-Start:       $syslog
 # Required-Stop:
-# Default-Start:  2 3 4 5
-# Default-Stop:   0 1 6
-# Short-Description: VirtualBox Machines Control
+# Default-Start:        2 3 4 5
+# Default-Stop:         0 1 6
+# Description:          VirtualBox Machines Control
+# Short-Description:    VirtualBox Machines Control
 ### END INIT INFO
 
 ##
@@ -25,7 +25,11 @@ PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
 CONFIG="/etc/vbox/vbox.cfg"
 [ -f "$CONFIG" ] && . "$CONFIG"
 [ -r /etc/default/virtualbox ] && . /etc/default/virtualbox
-SU="su - $VM_USER -c"
+if [ "$USER" = "root" ]; then
+    SU="su - $VM_USER -c"
+else
+    SU="bash -c"
+fi
 
 ##
 ## Functions
